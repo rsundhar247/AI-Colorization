@@ -93,6 +93,8 @@ public class Colorization {
 		BufferedReader breader = null;
 		try {
 			RandomAccessFile randomFile = new RandomAccessFile(colorPath, "rw");
+			randomFile.setLength(0);
+			
 			freader = new FileReader(bwPath);
 			breader = new BufferedReader(freader);
 			
@@ -121,7 +123,7 @@ public class Colorization {
 				    
 				 long fileLength = randomFile.length();
 				 randomFile.seek(fileLength);
-				 randomFile.writeBytes("\n"+sb);
+				 randomFile.writeBytes(sb+"\n");
 			}
 		
 			randomFile.close();
