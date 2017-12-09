@@ -26,21 +26,21 @@ public class Colorization {
 	static String IN_BW_PATH = "src//data//input.csv";
 	static String OUT_BW_PATH = "src//data//data.csv";
 	static String OUT_COLOR_PATH = "src//data//output.csv";
-	static HashMap<Integer, ArrayList<Integer>> inBwMap = new HashMap<Integer, ArrayList<Integer>>();
-	static HashMap<Integer, ArrayList<Integer>> inColorMap = new HashMap<Integer, ArrayList<Integer>>();
+	static HashMap<Integer, ArrayList<Integer>> inBwMap = new HashMap<Integer, ArrayList<Integer>>(); // Map for BlackWhite data - (Key,Value) as (i, Cell<0 to 8>)
+	static HashMap<Integer, ArrayList<Integer>> inColorMap = new HashMap<Integer, ArrayList<Integer>>(); // Map for Color data - (Key,Value) as (i, <R,G,B>)
 	//static HashMap<Integer, ArrayList<Integer>> outBwMap = new HashMap<Integer, ArrayList<Integer>>();
 	
 	
 	public static void main(String[] args) {
 		
 		Colorization colorization = new Colorization();
-		colorization.constructData();
+		colorization.readData();
 		colorization.createBWClusters();
 		colorization.createColorClusters();
 		//colorization.extractData();
 	}
 	
-	public void constructData() {
+	public void readData() {
 	
 		String colorCurrentLine = "", bwCurrentLine = "";
 		FileReader freader = null, freader1 = null; 
@@ -96,7 +96,7 @@ public class Colorization {
 		int[] bwClusters = new int[CLUSTERS];
 		int totalValues = 48894;
 		
-		for(int i=0; i<CLUSTERS; i++) {
+		for(int i=0; i<CLUSTERS; i++) { //Picking Random cluster points
 			boolean flag = false;
 			while(! flag) {
 				int getPos = (int) (Math.random() * totalValues);
@@ -119,11 +119,11 @@ public class Colorization {
 		
 		boolean flag = false;
 		int loopCount = 0;
-		while(! flag) {
+		while(! flag) { //looping till the cluster values get updated
 			++loopCount;
 			LinkedHashMap<Integer,ArrayList<Integer>> clusterMap = new LinkedHashMap<Integer,ArrayList<Integer>>();
 			
-			//puts each value in a cluster
+			//puts each value in inBwMap to a nearest cluster
 			for(int i=0; i<totalValues; i++) {
 				int dist = Integer.MAX_VALUE, bucket = 0;
 				for(int j=0; j<CLUSTERS; j++) {
@@ -134,7 +134,7 @@ public class Colorization {
 				}
 				
 				if(clusterMap.containsKey(bwClusters[bucket])) {
-					clusterMap.get(bwClusters[bucket]).add(inBwMap.get(i).get(0));
+					clusterMap.get(bwClusters[bucket]).add(inBwMap.get(i).get(0)); //Map as (cluster's center, points in cluster)
 				} else {
 					ArrayList<Integer> arrayList = new ArrayList<Integer>();
 					arrayList.add(inBwMap.get(i).get(0));
@@ -147,7 +147,7 @@ public class Colorization {
 			System.out.println(clusterMap.keySet());
 			
 			
-			//Calculating the average distance inside clusters
+			//Calculating the average distance inside clusters, between centre and the points
 			for(int i=0; i<CLUSTERS; i++) {
 				int totalValue = 0;
 				for(int j=0; j<clusterMap.get(bwClusters[i]).size(); j++) {
@@ -155,7 +155,7 @@ public class Colorization {
 				}
 				int newCluster = (int) (totalValue/clusterMap.get(bwClusters[i]).size());
 				if(bwClusters[i] != newCluster) {
-					bwClusters[i] = (int) (totalValue/clusterMap.get(bwClusters[i]).size());
+					bwClusters[i] = (int) (totalValue/clusterMap.get(bwClusters[i]).size()); // updating the average as new cluster center
 					flag = false;
 				}
 			}
@@ -231,9 +231,9 @@ public void createColorClusters() {
 			flag = true;
 			
 			Set<int[]> print = clusterMap.keySet();
-			Iterator itr = print.iterator();
+			Iterator<int[]> itr = print.iterator();
 			while(itr.hasNext()){
-				int[] printVal = (int[]) itr.next();
+				int[] printVal = itr.next();
 				System.out.print(printVal[0]+" "+printVal[1]+" "+printVal[2]+", \t");
 		    }
 			
@@ -253,7 +253,7 @@ public void createColorClusters() {
 				newCluster[1] = (int) (totalGValue/clusterMap.get(colorClusters.get(i)).size());
 				newCluster[2] = (int) (totalBValue/clusterMap.get(colorClusters.get(i)).size());
 				
-				if(colorClusters.get(i)[0] != newCluster[0] && colorClusters.get(i)[1] != newCluster[1] && colorClusters.get(i)[2] != newCluster[2]) {
+				if(!(colorClusters.get(i)[0] == newCluster[0] && colorClusters.get(i)[1] == newCluster[1] && colorClusters.get(i)[2] == newCluster[2])) {
 					colorClusters.get(i)[0] = (int) (totalRValue/clusterMap.get(colorClusters.get(i)).size());
 					colorClusters.get(i)[1] = (int) (totalGValue/clusterMap.get(colorClusters.get(i)).size());
 					colorClusters.get(i)[2] = (int) (totalBValue/clusterMap.get(colorClusters.get(i)).size());
@@ -272,7 +272,7 @@ public void createColorClusters() {
 
 	public void extractData() {
 		
-		HashMap<Integer, ArrayList<Integer>> outBwMap = new HashMap<Integer, ArrayList<Integer>>();
+		LinkedHashMap<Integer, ArrayList<Integer>> outBwMap = new LinkedHashMap<Integer, ArrayList<Integer>>();
 		String bwCurrentLine = "";
 		FileReader freader = null; 
 		BufferedReader breader = null;
