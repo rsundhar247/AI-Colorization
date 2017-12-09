@@ -14,7 +14,9 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.Set;
 
 public class Colorization {
 	
@@ -34,6 +36,7 @@ public class Colorization {
 		Colorization colorization = new Colorization();
 		colorization.constructData();
 		colorization.createBWClusters();
+		colorization.createColorClusters();
 		//colorization.extractData();
 	}
 	
@@ -108,7 +111,7 @@ public class Colorization {
 			}
 		}
 		
-		System.out.println("CLUSTER VALUES");
+		System.out.println("BW CLUSTER VALUES");
 		for(int i=0; i<CLUSTERS; i++) {
 			System.out.print(bwClusters[i]+" ");
 		}
@@ -163,9 +166,110 @@ public class Colorization {
 		for(int i=0; i<CLUSTERS; i++) {
 			System.out.print(bwClusters[i]+" ");
 		}
-		
+		System.out.println("\n");
 	}
 	
+public void createColorClusters() {
+		
+		ArrayList<int[]> colorClusters = new ArrayList<int[]>();
+		int totalValues = 48894;
+		
+		for(int i=0; i<CLUSTERS; i++) {
+			int[] rgb = new int[3];
+			boolean flag = false;
+			while(! flag) {
+				int getPos = (int) (Math.random() * totalValues);
+				
+				for(int j=0; j<3; j++) {
+					rgb[j] = inColorMap.get(getPos).get(j);
+				}
+				
+				flag = true;
+				for(int j=0; j<i; j++) {
+					if(rgb[0] == colorClusters.get(j)[0] && rgb[1] == colorClusters.get(j)[1] 
+							&& rgb[2] == colorClusters.get(j)[2]) {
+						flag = false;
+						break;
+					}
+				}
+			}
+			colorClusters.add(rgb);
+		}
+		
+		System.out.println("COLOR CLUSTER VALUES");
+		for(int i=0; i<CLUSTERS; i++) {
+			System.out.print(colorClusters.get(i)[0]+" "+colorClusters.get(i)[1]+" "+colorClusters.get(i)[2]+", \t");
+		}
+		System.out.println();
+		
+		boolean flag = false;
+		int loopCount = 0;
+		while(! flag) {
+			++loopCount;
+			LinkedHashMap<int[],ArrayList<ArrayList<Integer>>> clusterMap = new LinkedHashMap<int[],ArrayList<ArrayList<Integer>>>();
+			
+			//puts each value in a cluster
+			for(int i=0; i<totalValues; i++) {
+				int dist = Integer.MAX_VALUE, bucket = 0;
+				for(int j=0; j<CLUSTERS; j++) {
+					int distance = calcDist(inColorMap.get(i), inColorMap.get(j));
+					if(dist > distance){
+						dist = distance; 
+						bucket = j;
+					}
+				}
+				
+				if(clusterMap.containsKey(colorClusters.get(bucket))) {
+					clusterMap.get(colorClusters.get(bucket)).add(inColorMap.get(i));
+				} else {
+					ArrayList<ArrayList<Integer>> arrayList = new ArrayList<ArrayList<Integer>>();
+					arrayList.add(inColorMap.get(i));
+					clusterMap.put(colorClusters.get(bucket), arrayList);
+				}
+			}
+			
+			flag = true;
+			
+			Set<int[]> print = clusterMap.keySet();
+			Iterator itr = print.iterator();
+			while(itr.hasNext()){
+				int[] printVal = (int[]) itr.next();
+				System.out.print(printVal[0]+" "+printVal[1]+" "+printVal[2]+", \t");
+		    }
+			
+			System.out.println();
+			
+			//Calculating the average distance inside clusters
+			for(int i=0; i<CLUSTERS; i++) {
+				int totalRValue = 0, totalGValue = 0, totalBValue = 0;
+				for(int j=0; j<clusterMap.get(colorClusters.get(i)).size(); j++) {
+					totalRValue += clusterMap.get(colorClusters.get(i)).get(j).get(0);
+					totalGValue += clusterMap.get(colorClusters.get(i)).get(j).get(1);
+					totalBValue += clusterMap.get(colorClusters.get(i)).get(j).get(2);
+				}
+				
+				int[] newCluster = new int[3];
+				newCluster[0] = (int) (totalRValue/clusterMap.get(colorClusters.get(i)).size());
+				newCluster[1] = (int) (totalGValue/clusterMap.get(colorClusters.get(i)).size());
+				newCluster[2] = (int) (totalBValue/clusterMap.get(colorClusters.get(i)).size());
+				
+				if(colorClusters.get(i)[0] != newCluster[0] && colorClusters.get(i)[1] != newCluster[1] && colorClusters.get(i)[2] != newCluster[2]) {
+					colorClusters.get(i)[0] = (int) (totalRValue/clusterMap.get(colorClusters.get(i)).size());
+					colorClusters.get(i)[1] = (int) (totalGValue/clusterMap.get(colorClusters.get(i)).size());
+					colorClusters.get(i)[2] = (int) (totalBValue/clusterMap.get(colorClusters.get(i)).size());
+					flag = false;
+				}
+			}
+		}
+		
+		System.out.println("COLOR LOOP COUNT :: "+loopCount);
+		System.out.println("COLOR CLUSTER VALUES");
+		for(int i=0; i<CLUSTERS; i++) {
+			System.out.print(colorClusters.get(i)[0]+" "+colorClusters.get(i)[1]+" "+colorClusters.get(i)[2]+", \t");
+		}
+		
+	}
+
 	public void extractData() {
 		
 		HashMap<Integer, ArrayList<Integer>> outBwMap = new HashMap<Integer, ArrayList<Integer>>();
@@ -216,8 +320,8 @@ public class Colorization {
 		}
 	}
 	
-	public static int calcDist(int[] color1, int[] color2) {
-		Double dist = Math.sqrt(( 2 * Math.pow(color1[0] - color2[0],2) + 4 * Math.pow(color1[1] - color2[1],2) + 3 * Math.pow(color1[2] - color2[2],2) ));
+	public static int calcDist(ArrayList<Integer> color1, ArrayList<Integer> color2) {
+		Double dist = Math.sqrt(( 2 * Math.pow(color1.get(0) - color2.get(0), 2) + 4 * Math.pow(color1.get(1) - color2.get(1), 2) + 3 * Math.pow(color1.get(2) - color2.get(2), 2) ));
 		return dist.intValue();
 	}
 	
