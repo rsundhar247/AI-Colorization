@@ -11,16 +11,14 @@ package app;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Colorization {
 	
-	static int COLOR_GROUPS = 8;
-	static int BW_GROUPS = 8;
+	static int COLOR_GROUPS = 2;
+	static int BW_GROUPS = 2;
 	static int MAX_INTENSITY = 255;
 	static HashMap<ArrayList<Integer>, ArrayList<Integer>> bwToColorMap = new HashMap<ArrayList<Integer>, ArrayList<Integer>>();
 	
@@ -48,21 +46,23 @@ public class Colorization {
 			breader1 = new BufferedReader(freader1);
 			
 			while ((colorCurrentLine = breader.readLine()) != null && (bwCurrentLine = breader1.readLine()) != null) {
-				colorCurrentLine = colorCurrentLine.toLowerCase();
-				String[] colorVal = colorCurrentLine.split(",");
+				
+				
+				//Code for clustering
+				
+				/*String[] colorVal = colorCurrentLine.split(",");
 				ArrayList<Integer> colorValues = new ArrayList<Integer>();
 				for(int i = 0; i < colorVal.length; i++) {
-					colorValues.add(Integer.parseInt(colorVal[i]));
+					colorValues.add(Integer.parseInt(colorVal[i].trim()));
 				}
 				
-				bwCurrentLine = bwCurrentLine.toLowerCase();
 				String[] bwVal = bwCurrentLine.split(",");
 				ArrayList<Integer> bwValues = new ArrayList<Integer>();
 				for(int i = 0; i < bwVal.length; i++) {
-					bwValues.add(Integer.parseInt(bwVal[i]));
+					bwValues.add(Integer.parseInt(bwVal[i].trim()));
 				}
 				
-				bwToColorMap.put(bwGroups(bwValues), colorGroups(colorValues));
+				bwToColorMap.put(bwGroups(bwValues), colorGroups(colorValues));*/
 			}
 			
 		} catch (IOException e) {
@@ -99,15 +99,20 @@ public class Colorization {
 			breader = new BufferedReader(freader);
 			
 			while ((bwCurrentLine = breader.readLine()) != null) {
-				bwCurrentLine = bwCurrentLine.toLowerCase();
+				
+				
+				//code for constructing output data
+				
+				
+				/*bwCurrentLine = bwCurrentLine.toLowerCase();
 				String[] bwVal = bwCurrentLine.split(",");
 				ArrayList<Integer> bwValues = new ArrayList<Integer>();
 				for(int i = 0; i < bwVal.length; i++) {
-					bwValues.add(Integer.parseInt(bwVal[i]));
+					bwValues.add(Integer.parseInt(bwVal[i].trim()));
 				}
 				
-				ArrayList<Integer> colorValues = bwToColorMap.get(bwGroups(bwValues));
 				ArrayList<Integer> asd = bwGroups(bwValues);
+				ArrayList<Integer> colorValues = bwToColorMap.get(bwGroups(bwValues));
 				StringBuffer sb = new StringBuffer();
 				if(colorValues == null) {
 				
@@ -123,7 +128,7 @@ public class Colorization {
 				    
 				 long fileLength = randomFile.length();
 				 randomFile.seek(fileLength);
-				 randomFile.writeBytes(sb+"\n");
+				 randomFile.writeBytes(sb+"\n");*/
 			}
 		
 			randomFile.close();
@@ -141,7 +146,12 @@ public class Colorization {
 		}
 	}
 	
-	public static ArrayList<Integer> colorGroups(ArrayList<Integer> input) {
+	public static int calcDist(int[] color1, int[] color2) {
+		Double dist = Math.sqrt(( 2 * Math.pow(color1[0] - color2[0],2) + 4 * Math.pow(color1[1] - color2[1],2) + 3 * Math.pow(color1[2] - color2[2],2) ));
+		return dist.intValue();
+	}
+	
+	/*public static ArrayList<Integer> colorGroups(ArrayList<Integer> input) {
 		ArrayList<Integer> groups = new ArrayList<Integer>();
 		int colorRange = (MAX_INTENSITY + 1)/COLOR_GROUPS;
 		
@@ -171,5 +181,5 @@ public class Colorization {
 		}
 		
 		return groups;
-	}
+	}*/
 }
