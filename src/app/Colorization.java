@@ -14,43 +14,46 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 public class Colorization {
 	
-	static int COLOR_GROUPS = 2;
-	static int BW_GROUPS = 2;
 	static int MAX_INTENSITY = 255;
-	static HashMap<ArrayList<Integer>, ArrayList<Integer>> bwToColorMap = new HashMap<ArrayList<Integer>, ArrayList<Integer>>();
+	static int CLUSTERS = 10;
+	static String IN_COLOR_PATH = "src//data//color.csv";
+	static String IN_BW_PATH = "src//data//input.csv";
+	static String OUT_BW_PATH = "src//data//data.csv";
+	static String OUT_COLOR_PATH = "src//data//output.csv";
+	static HashMap<Integer, ArrayList<Integer>> inBwMap = new HashMap<Integer, ArrayList<Integer>>();
+	static HashMap<Integer, ArrayList<Integer>> inColorMap = new HashMap<Integer, ArrayList<Integer>>();
+	//static HashMap<Integer, ArrayList<Integer>> outBwMap = new HashMap<Integer, ArrayList<Integer>>();
+	
 	
 	public static void main(String[] args) {
 		
 		Colorization colorization = new Colorization();
-		colorization.learnSample();
-		colorization.extractData();
+		colorization.constructData();
+		colorization.createBWClusters();
+		//colorization.extractData();
 	}
 	
-	public void learnSample() {
+	public void constructData() {
 	
-		String colorPath = "src//data//color.csv";
-		String bwPath = "src//data//input.csv";
-		
 		String colorCurrentLine = "", bwCurrentLine = "";
 		FileReader freader = null, freader1 = null; 
 		BufferedReader breader = null, breader1 = null;
+		int bwCount = 0, colorCount = 0;
 		
 		try {
-			freader = new FileReader(colorPath);
+			freader = new FileReader(IN_COLOR_PATH);
 			breader = new BufferedReader(freader);
 			
-			freader1 = new FileReader(bwPath);
+			freader1 = new FileReader(IN_BW_PATH);
 			breader1 = new BufferedReader(freader1);
 			
 			while ((colorCurrentLine = breader.readLine()) != null && (bwCurrentLine = breader1.readLine()) != null) {
 				
-				
-				//Code for clustering
-				
-				/*String[] colorVal = colorCurrentLine.split(",");
+				String[] colorVal = colorCurrentLine.split(",");
 				ArrayList<Integer> colorValues = new ArrayList<Integer>();
 				for(int i = 0; i < colorVal.length; i++) {
 					colorValues.add(Integer.parseInt(colorVal[i].trim()));
@@ -62,10 +65,12 @@ public class Colorization {
 					bwValues.add(Integer.parseInt(bwVal[i].trim()));
 				}
 				
-				bwToColorMap.put(bwGroups(bwValues), colorGroups(colorValues));*/
+				inColorMap.put(colorCount++, colorValues);
+				inBwMap.put(bwCount++, bwValues);
+				
 			}
 			
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
 			try {
@@ -83,56 +88,121 @@ public class Colorization {
 		}
 	}
 	
+	public void createBWClusters() {
+		
+		int[] bwClusters = new int[CLUSTERS];
+		int totalValues = 48894;
+		
+		for(int i=0; i<CLUSTERS; i++) {
+			boolean flag = false;
+			while(! flag) {
+				int getPos = (int) (Math.random() * totalValues);
+				bwClusters[i] = inBwMap.get(getPos).get(4);
+				flag = true;
+				for(int j=0; j<i; j++) {
+					if(bwClusters[i] == bwClusters[j]) {
+						flag = false;
+						break;
+					}
+				}
+			}
+		}
+		
+		System.out.println("CLUSTER VALUES");
+		for(int i=0; i<CLUSTERS; i++) {
+			System.out.print(bwClusters[i]+" ");
+		}
+		System.out.println();
+		
+		boolean flag = false;
+		int loopCount = 0;
+		while(! flag) {
+			++loopCount;
+			LinkedHashMap<Integer,ArrayList<Integer>> clusterMap = new LinkedHashMap<Integer,ArrayList<Integer>>();
+			
+			//puts each value in a cluster
+			for(int i=0; i<totalValues; i++) {
+				int dist = Integer.MAX_VALUE, bucket = 0;
+				for(int j=0; j<CLUSTERS; j++) {
+					if(dist > Math.abs(inBwMap.get(i).get(4) - bwClusters[j])){
+						dist = Math.abs(inBwMap.get(i).get(4) - bwClusters[j]); 
+						bucket = j;
+					}
+				}
+				
+				if(clusterMap.containsKey(bwClusters[bucket])) {
+					clusterMap.get(bwClusters[bucket]).add(inBwMap.get(i).get(0));
+				} else {
+					ArrayList<Integer> arrayList = new ArrayList<Integer>();
+					arrayList.add(inBwMap.get(i).get(0));
+					clusterMap.put(bwClusters[bucket], arrayList);
+				}
+			}
+			
+			flag = true;
+			
+			System.out.println(clusterMap.keySet());
+			
+			
+			//Calculating the average distance inside clusters
+			for(int i=0; i<CLUSTERS; i++) {
+				int totalValue = 0;
+				for(int j=0; j<clusterMap.get(bwClusters[i]).size(); j++) {
+					totalValue += clusterMap.get(bwClusters[i]).get(j);
+				}
+				int newCluster = (int) (totalValue/clusterMap.get(bwClusters[i]).size());
+				if(bwClusters[i] != newCluster) {
+					bwClusters[i] = (int) (totalValue/clusterMap.get(bwClusters[i]).size());
+					flag = false;
+				}
+			}
+		}
+		
+		System.out.println("BW LOOP COUNT :: "+loopCount);
+		System.out.println("CLUSTER VALUES");
+		for(int i=0; i<CLUSTERS; i++) {
+			System.out.print(bwClusters[i]+" ");
+		}
+		
+	}
+	
 	public void extractData() {
 		
-		String bwPath = "src//data//data.csv";
-		String colorPath = "src//data//output.csv";
-		
+		HashMap<Integer, ArrayList<Integer>> outBwMap = new HashMap<Integer, ArrayList<Integer>>();
 		String bwCurrentLine = "";
 		FileReader freader = null; 
 		BufferedReader breader = null;
 		try {
-			RandomAccessFile randomFile = new RandomAccessFile(colorPath, "rw");
+			RandomAccessFile randomFile = new RandomAccessFile(OUT_COLOR_PATH, "rw");
 			randomFile.setLength(0);
 			
-			freader = new FileReader(bwPath);
+			freader = new FileReader(OUT_BW_PATH);
 			breader = new BufferedReader(freader);
 			
 			while ((bwCurrentLine = breader.readLine()) != null) {
-				
-				
-				//code for constructing output data
-				
-				
-				/*bwCurrentLine = bwCurrentLine.toLowerCase();
 				String[] bwVal = bwCurrentLine.split(",");
 				ArrayList<Integer> bwValues = new ArrayList<Integer>();
 				for(int i = 0; i < bwVal.length; i++) {
 					bwValues.add(Integer.parseInt(bwVal[i].trim()));
 				}
 				
-				ArrayList<Integer> asd = bwGroups(bwValues);
-				ArrayList<Integer> colorValues = bwToColorMap.get(bwGroups(bwValues));
-				StringBuffer sb = new StringBuffer();
-				if(colorValues == null) {
 				
-					System.out.println("Skip");
-					continue;
-				}
-				for(int i = 0; i < colorValues.size(); i++) {
+				
+				StringBuffer sb = new StringBuffer();
+				/*for(int i = 0; i < colorValues.size(); i++) {
 					if(i < colorValues.size()-1)
 						sb.append(colorValues.get(i)+",");
 					else
 						sb.append(colorValues.get(i));
-				}
+				}*/
 				    
 				 long fileLength = randomFile.length();
 				 randomFile.seek(fileLength);
-				 randomFile.writeBytes(sb+"\n");*/
+				 randomFile.writeBytes(sb+"\n");
 			}
 		
 			randomFile.close();
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
 			try {
