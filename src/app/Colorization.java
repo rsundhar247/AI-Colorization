@@ -20,6 +20,14 @@ import java.util.Set;
 
 public class Colorization {
 	
+	//total input rows: 48894
+	static int trainingStart = 0;
+	static int trainingEnd = (int)(48894*0.8);
+	static int testStart = trainingEnd + 1;
+	static int testEnd = testStart + (int)(48894*0.15);
+	static int validationStart = testEnd + 1;
+	static int validationEnd = 48893;
+	
 	static int MAX_INTENSITY = 255;
 	static int CLUSTERS = 10;
 	static String IN_COLOR_PATH = "src//data//color.csv";
@@ -35,8 +43,14 @@ public class Colorization {
 		
 		Colorization colorization = new Colorization();
 		colorization.readData();
-		colorization.createBWClusters();
-		colorization.createColorClusters();
+		
+		System.out.println(trainingStart + ", " + trainingEnd + ", " + testStart + ", " + testEnd + ", " + validationStart + ", " + validationEnd);
+		System.out.println(inBwMap.get(0).get(3));
+		
+		cluster();
+		
+		//colorization.createBWClusters();
+		//colorization.createColorClusters();
 		//colorization.extractData();
 	}
 	
@@ -91,6 +105,99 @@ public class Colorization {
 		}
 	}
 	
+	public static void cluster() {
+		int numClusters = 100;
+			
+		int[][] clusters = new int[numClusters][9];
+		for (int j=0; j<clusters.length; j++) { //initialize clusters
+			for (int k=0; k<9; k++) {
+				clusters[j][k] = (int)(Math.random() * 255);
+			}
+		}
+		
+		System.out.println("Initial Clusters:");
+		print2dArray(clusters);
+			
+		int[] clusterClassification = new int[testStart]; 
+			
+		for (int j=0; j<20; j++) { //iterations of reclustering
+				
+			for (int k=0; k<testStart; k++) { //classify each datapoint
+					
+				int dist = 0;
+				
+				for (int l=0; l<clusters.length; l++) { //check each cluster
+					
+					int newDist = 0;
+						
+					for (int m=0; m<9; m++) {
+						newDist += Math.abs(inBwMap.get(k).get(m) - clusters[l][m]);
+					}
+						
+					if (dist == 0 || newDist < dist) {
+						dist = newDist;
+						clusterClassification[k] = l;
+					}
+					newDist = 0;
+				}	
+			}
+				
+			//recluster
+			if (j<19) {
+					
+				int[][] newClusters = new int[numClusters][9];
+				int[] totalDataPerCluster = new int[numClusters];
+					
+				for (int k=0; k<testStart; k++) {
+					totalDataPerCluster[clusterClassification[k]] += 1;
+						
+					for (int l=0; l<9; l++) {
+						newClusters[clusterClassification[k]][l] += inBwMap.get(k).get(l);
+					}
+				}
+					
+				for (int k=0; k<numClusters; k++) {
+					for (int l=0; l<9; l++) {
+						if (totalDataPerCluster[k] != 0) {
+							newClusters[k][l] = (newClusters[k][l]/totalDataPerCluster[k]);
+						}
+					}
+				}
+			
+				clusters = newClusters;
+			}
+				
+
+		}
+		
+		//calculate total error
+		int error = 0;
+		for (int j=0; j<testStart; j++) {
+			for (int k=0; k<9; k++) {
+				error += Math.abs(inBwMap.get(j).get(k) - clusters[clusterClassification[j]][k]);
+			}
+		}
+		
+
+		System.out.println("Final Clusters: ");
+		print2dArray(clusters);
+		
+		
+		System.out.println();
+		
+		int zero = 0;
+		for (int j=0; j<clusters.length; j++) {
+			if (clusters[j][0] == 0 && clusters[j][1] == 0 && clusters[j][2] == 0) {
+				zero++;
+			}
+		}
+		System.out.println("Removed clusters: " + zero);
+		System.out.println("Error:" + error);
+		
+		
+	}
+	
+
 	public void createBWClusters() {
 		
 		int[] bwClusters = new int[CLUSTERS];
@@ -323,6 +430,16 @@ public void createColorClusters() {
 	public static int calcDist(ArrayList<Integer> color1, ArrayList<Integer> color2) {
 		Double dist = Math.sqrt(( 2 * Math.pow(color1.get(0) - color2.get(0), 2) + 4 * Math.pow(color1.get(1) - color2.get(1), 2) + 3 * Math.pow(color1.get(2) - color2.get(2), 2) ));
 		return dist.intValue();
+	}
+	
+	public static void print2dArray(int[][] array) {
+		for (int i=0; i<array.length; i++) {
+			System.out.println("Array: " + (i+1));
+			System.out.println(array[i][0] + " " + array[i][1] + " " + array[i][2]);
+			System.out.println(array[i][3] + " " + array[i][4] + " " + array[i][5]);
+			System.out.println(array[i][6] + " " + array[i][7] + " " + array[i][8]);
+			System.out.println();
+		}
 	}
 	
 	/*public static ArrayList<Integer> colorGroups(ArrayList<Integer> input) {
