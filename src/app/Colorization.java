@@ -28,6 +28,11 @@ public class Colorization {
 	static int validationStart = testEnd + 1;
 	static int validationEnd = 48893;
 	
+	static int[] bwCluster;
+	static int[] colorCluster;
+	static int numClusters = 100;
+	static int maxReclassification = 50;
+	
 	static int MAX_INTENSITY = 255;
 	static int CLUSTERS = 10;
 	static String IN_COLOR_PATH = "src//data//color.csv";
@@ -47,7 +52,8 @@ public class Colorization {
 		System.out.println(trainingStart + ", " + trainingEnd + ", " + testStart + ", " + testEnd + ", " + validationStart + ", " + validationEnd);
 		System.out.println(inBwMap.get(0).get(3));
 		
-		cluster();
+		//clusterBW();
+		clusterColor();
 		
 		//colorization.createBWClusters();
 		//colorization.createColorClusters();
@@ -105,9 +111,8 @@ public class Colorization {
 		}
 	}
 	
-	public static void cluster() {
-		int numClusters = 100;
-			
+	public static void clusterBW() {
+
 		int[][] clusters = new int[numClusters][9];
 		for (int j=0; j<clusters.length; j++) { //initialize clusters
 			for (int k=0; k<9; k++) {
@@ -116,11 +121,11 @@ public class Colorization {
 		}
 		
 		System.out.println("Initial Clusters:");
-		print2dArray(clusters);
+		print2dBWArray(clusters);
 			
 		int[] clusterClassification = new int[testStart]; 
 			
-		for (int j=0; j<20; j++) { //iterations of reclustering
+		for (int j=0; j<maxReclassification; j++) { //iterations of reclustering
 				
 			for (int k=0; k<testStart; k++) { //classify each datapoint
 					
@@ -141,34 +146,48 @@ public class Colorization {
 					newDist = 0;
 				}	
 			}
-				
-			//recluster
-			if (j<19) {
-					
-				int[][] newClusters = new int[numClusters][9];
-				int[] totalDataPerCluster = new int[numClusters];
-					
-				for (int k=0; k<testStart; k++) {
-					totalDataPerCluster[clusterClassification[k]] += 1;
-						
-					for (int l=0; l<9; l++) {
-						newClusters[clusterClassification[k]][l] += inBwMap.get(k).get(l);
-					}
-				}
-					
-				for (int k=0; k<numClusters; k++) {
-					for (int l=0; l<9; l++) {
-						if (totalDataPerCluster[k] != 0) {
-							newClusters[k][l] = (newClusters[k][l]/totalDataPerCluster[k]);
-						}
-					}
-				}
 			
-				clusters = newClusters;
+			if (j==maxReclassification-1) {
+				bwCluster = clusterClassification;
+				break;
 			}
 				
+			//recluster
+			int[][] newClusters = new int[numClusters][9];
+			int[] totalDataPerCluster = new int[numClusters];
+				
+			for (int k=0; k<testStart; k++) {
+				totalDataPerCluster[clusterClassification[k]] += 1;
+					
+				for (int l=0; l<9; l++) { //clusters without observations are dropped
+					newClusters[clusterClassification[k]][l] += inBwMap.get(k).get(l);
+				}
+			}
+				
+			for (int k=0; k<numClusters; k++) {
+				for (int l=0; l<9; l++) {
+					if (totalDataPerCluster[k] != 0) {
+						newClusters[k][l] = (newClusters[k][l]/totalDataPerCluster[k]);
+					}
+				}
+			}
+		
+			clusters = newClusters;
 
 		}
+		
+		System.out.println("Final Clusters: ");
+		print2dBWArray(clusters);
+		
+		System.out.println();
+		
+		int zero = 0;
+		for (int j=0; j<clusters.length; j++) {
+			if (clusters[j][0] == 0 && clusters[j][1] == 0 && clusters[j][2] == 0 && clusters[j][3] == 0 && clusters[j][4] == 0) {
+				zero++;
+			}
+		}
+		System.out.println("Removed clusters: " + zero);
 		
 		//calculate total error
 		int error = 0;
@@ -177,11 +196,75 @@ public class Colorization {
 				error += Math.abs(inBwMap.get(j).get(k) - clusters[clusterClassification[j]][k]);
 			}
 		}
+		System.out.println("Error:" + error);
 		
+	}
+	
+	public static void clusterColor() {
+			
+		int[][] clusters = new int[numClusters][3];
+		for (int j=0; j<clusters.length; j++) { //initialize clusters
+			for (int k=0; k<3; k++) {
+				clusters[j][k] = (int)(Math.random() * 255);
+			}
+		}
+		
+		System.out.println("Initial Clusters:");
+		print2dColorArray(clusters);
+			
+		int[] clusterClassification = new int[testStart]; 
+			
+		for (int j=0; j<maxReclassification; j++) { //iterations of reclustering
+				
+			for (int k=0; k<testStart; k++) { //classify each datapoint
+					
+				int dist = 0;
+				
+				for (int l=0; l<clusters.length; l++) { //check each cluster
+					
+					int newDist = 0;
+						
+					newDist += calcWeightedColorDist(inColorMap.get(k), clusters[l]);
+						
+					if (dist == 0 || newDist < dist) {
+						dist = newDist;
+						clusterClassification[k] = l;
+					}
+					newDist = 0;
+				}	
+			}
+			
+			if (j==maxReclassification-1) {
+				colorCluster = clusterClassification;
+				break;
+			}
+				
+			//recluster
+			int[][] newClusters = new int[numClusters][3];
+			int[] totalDataPerCluster = new int[numClusters];
+				
+			for (int k=0; k<testStart; k++) {
+				totalDataPerCluster[clusterClassification[k]] += 1;
+					
+				for (int l=0; l<3; l++) { //clusters without observations are dropped
+					newClusters[clusterClassification[k]][l] += inColorMap.get(k).get(l);
+				}
+			}
+				
+			for (int k=0; k<numClusters; k++) {
+				for (int l=0; l<3; l++) {
+					if (totalDataPerCluster[k] != 0) {
+						newClusters[k][l] = (newClusters[k][l]/totalDataPerCluster[k]);
+					}
+				}
+			}
+		
+			clusters = newClusters;
+		}
 
-		System.out.println("Final Clusters: ");
-		print2dArray(clusters);
 		
+		System.out.println("Final Clusters: ");
+		print2dColorArray(clusters);
 		
 		System.out.println();
 		
@@ -192,11 +275,15 @@ public class Colorization {
 			}
 		}
 		System.out.println("Removed clusters: " + zero);
+		
+		//calculate total error
+		int error = 0;
+		for (int j=0; j<testStart; j++) {
+			error += calcWeightedColorDist(inColorMap.get(j), clusters[clusterClassification[j]]);
+		}
 		System.out.println("Error:" + error);
 		
-		
 	}
-	
 
 	public void createBWClusters() {
 		
@@ -432,12 +519,29 @@ public void createColorClusters() {
 		return dist.intValue();
 	}
 	
-	public static void print2dArray(int[][] array) {
+	public static double calcWeightedColorDist(ArrayList<Integer> arr1, int[] arr2) {
+		double red = 2*Math.pow(arr1.get(0) - arr2[0], 2);
+		double green = 4*Math.pow(arr1.get(1) - arr2[1], 2);
+		double blue = 3*Math.pow(arr1.get(2) - arr2[2], 2);
+		
+		double distance = Math.pow(red+green+blue, 0.5);
+		return distance;
+	}
+	
+	public static void print2dBWArray(int[][] array) {
 		for (int i=0; i<array.length; i++) {
 			System.out.println("Array: " + (i+1));
 			System.out.println(array[i][0] + " " + array[i][1] + " " + array[i][2]);
 			System.out.println(array[i][3] + " " + array[i][4] + " " + array[i][5]);
 			System.out.println(array[i][6] + " " + array[i][7] + " " + array[i][8]);
+			System.out.println();
+		}
+	}
+	
+	public static void print2dColorArray(int[][] array) {
+		for (int i=0; i<array.length; i++) {
+			System.out.println("Array: " + (i+1));
+			System.out.println(array[i][0] + " " + array[i][1] + " " + array[i][2]);
 			System.out.println();
 		}
 	}
