@@ -206,9 +206,9 @@ public class Colorization {
 		System.out.println("Removed clusters: " + zero);
 		
 		//calculate total error
-		int error = 0;
+		double error = 0;
 		for (int j=0; j<testStart; j++) {
-			error += calcWeightedBWDist(inBwMap.get(j), inBwclusters[clusterClassification[j]]);
+			error = calcWeightedBWDist(inBwMap.get(j), inBwclusters[clusterClassification[j]]);
 		}
 		System.out.println("Error:" + error);
 		
@@ -290,9 +290,9 @@ public class Colorization {
 		System.out.println("Removed clusters: " + zero);
 		
 		//calculate total error
-		int error = 0;
+		double error = 0;
 		for (int j=0; j<testStart; j++) {
-			error += calcWeightedColorDist(inColorMap.get(j), inColorclusters[clusterClassification[j]]);
+			error = calcWeightedColorDist(inColorMap.get(j), inColorclusters[clusterClassification[j]]);
 		}
 		System.out.println("Error:" + error);
 		
