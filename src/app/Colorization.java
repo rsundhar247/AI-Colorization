@@ -14,9 +14,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.Set;
 
 public class Colorization {
 	
@@ -28,19 +26,23 @@ public class Colorization {
 	static int validationStart = testEnd + 1;
 	static int validationEnd = 48893;
 	
+	static int numClusters = 20;
+	static int maxReclassification = 50;
 	static int[] bwCluster;
 	static int[] colorCluster;
-	static int numClusters = 100;
-	static int maxReclassification = 50;
+	static int[][] inBwclusters = new int[numClusters][9];
+	static int[][] inColorclusters = new int[numClusters][3];
 	
-	static int MAX_INTENSITY = 255;
-	static int CLUSTERS = 10;
+	
+	//static int MAX_INTENSITY = 255;
+	//static int CLUSTERS = 10;
 	static String IN_COLOR_PATH = "src//data//color.csv";
 	static String IN_BW_PATH = "src//data//input.csv";
-	static String OUT_BW_PATH = "src//data//data.csv";
-	static String OUT_COLOR_PATH = "src//data//output.csv";
+	static String OUT_BW_PATH = "src//data//input.csv";
+	static String OUT_COLOR_PATH = "src//data//output11.csv";
 	static HashMap<Integer, ArrayList<Integer>> inBwMap = new HashMap<Integer, ArrayList<Integer>>(); // Map for BlackWhite data - (Key,Value) as (i, Cell<0 to 8>)
 	static HashMap<Integer, ArrayList<Integer>> inColorMap = new HashMap<Integer, ArrayList<Integer>>(); // Map for Color data - (Key,Value) as (i, <R,G,B>)
+	static HashMap<ArrayList<Integer>, ArrayList<Integer>> conversionMapping = new HashMap<ArrayList<Integer>, ArrayList<Integer>>();
 	//static HashMap<Integer, ArrayList<Integer>> outBwMap = new HashMap<Integer, ArrayList<Integer>>();
 	
 	
@@ -52,12 +54,16 @@ public class Colorization {
 		System.out.println(trainingStart + ", " + trainingEnd + ", " + testStart + ", " + testEnd + ", " + validationStart + ", " + validationEnd);
 		System.out.println(inBwMap.get(0).get(3));
 		
-		//clusterBW();
+		clusterBW();
 		clusterColor();
+
+		for(int i=0; i<inBwMap.size(); i++) {
+			conversionMapping.put(convertToBWCenter(inBwMap.get(i)), convertToColorCenter(inColorMap.get(i)));
+		}
 		
 		//colorization.createBWClusters();
 		//colorization.createColorClusters();
-		//colorization.extractData();
+		extractData();
 	}
 	
 	public void readData() {
@@ -113,15 +119,15 @@ public class Colorization {
 	
 	public static void clusterBW() {
 
-		int[][] clusters = new int[numClusters][9];
-		for (int j=0; j<clusters.length; j++) { //initialize clusters
+		
+		for (int j=0; j<inBwclusters.length; j++) { //initialize clusters
 			for (int k=0; k<9; k++) {
-				clusters[j][k] = (int)(Math.random() * 255);
+				inBwclusters[j][k] = (int)(Math.random() * 255);
 			}
 		}
 		
 		System.out.println("Initial Clusters:");
-		print2dBWArray(clusters);
+		print2dBWArray(inBwclusters);
 			
 		int[] clusterClassification = new int[testStart]; 
 			
@@ -131,13 +137,10 @@ public class Colorization {
 					
 				int dist = 0;
 				
-				for (int l=0; l<clusters.length; l++) { //check each cluster
+				for (int l=0; l<inBwclusters.length; l++) { //check each cluster
 					
 					int newDist = 0;
-						
-					for (int m=0; m<9; m++) {
-						newDist += Math.abs(inBwMap.get(k).get(m) - clusters[l][m]);
-					}
+					newDist += calcWeightedBWDist(inBwMap.get(k), inBwclusters[l]);
 						
 					if (dist == 0 || newDist < dist) {
 						dist = newDist;
@@ -172,18 +175,18 @@ public class Colorization {
 				}
 			}
 		
-			clusters = newClusters;
+			inBwclusters = newClusters;
 
 		}
 		
 		System.out.println("Final Clusters: ");
-		print2dBWArray(clusters);
+		print2dBWArray(inBwclusters);
 		
 		System.out.println();
 		
 		int zero = 0;
-		for (int j=0; j<clusters.length; j++) {
-			if (clusters[j][0] == 0 && clusters[j][1] == 0 && clusters[j][2] == 0 && clusters[j][3] == 0 && clusters[j][4] == 0) {
+		for (int j=0; j<inBwclusters.length; j++) {
+			if (inBwclusters[j][0] == 0 && inBwclusters[j][1] == 0 && inBwclusters[j][2] == 0 && inBwclusters[j][3] == 0 && inBwclusters[j][4] == 0) {
 				zero++;
 			}
 		}
@@ -192,9 +195,7 @@ public class Colorization {
 		//calculate total error
 		int error = 0;
 		for (int j=0; j<testStart; j++) {
-			for (int k=0; k<9; k++) {
-				error += Math.abs(inBwMap.get(j).get(k) - clusters[clusterClassification[j]][k]);
-			}
+			error += calcWeightedBWDist(inBwMap.get(j), inBwclusters[clusterClassification[j]]);
 		}
 		System.out.println("Error:" + error);
 		
@@ -202,15 +203,14 @@ public class Colorization {
 	
 	public static void clusterColor() {
 			
-		int[][] clusters = new int[numClusters][3];
-		for (int j=0; j<clusters.length; j++) { //initialize clusters
+		for (int j=0; j<inColorclusters.length; j++) { //initialize clusters
 			for (int k=0; k<3; k++) {
-				clusters[j][k] = (int)(Math.random() * 255);
+				inColorclusters[j][k] = (int)(Math.random() * 255);
 			}
 		}
 		
 		System.out.println("Initial Clusters:");
-		print2dColorArray(clusters);
+		print2dColorArray(inColorclusters);
 			
 		int[] clusterClassification = new int[testStart]; 
 			
@@ -220,11 +220,11 @@ public class Colorization {
 					
 				int dist = 0;
 				
-				for (int l=0; l<clusters.length; l++) { //check each cluster
+				for (int l=0; l<inColorclusters.length; l++) { //check each cluster
 					
 					int newDist = 0;
 						
-					newDist += calcWeightedColorDist(inColorMap.get(k), clusters[l]);
+					newDist += calcWeightedColorDist(inColorMap.get(k), inColorclusters[l]);
 						
 					if (dist == 0 || newDist < dist) {
 						dist = newDist;
@@ -259,18 +259,18 @@ public class Colorization {
 				}
 			}
 		
-			clusters = newClusters;
+			inColorclusters = newClusters;
 		}
 
 		
 		System.out.println("Final Clusters: ");
-		print2dColorArray(clusters);
+		print2dColorArray(inColorclusters);
 		
 		System.out.println();
 		
 		int zero = 0;
-		for (int j=0; j<clusters.length; j++) {
-			if (clusters[j][0] == 0 && clusters[j][1] == 0 && clusters[j][2] == 0) {
+		for (int j=0; j<inColorclusters.length; j++) {
+			if (inColorclusters[j][0] == 0 && inColorclusters[j][1] == 0 && inColorclusters[j][2] == 0) {
 				zero++;
 			}
 		}
@@ -279,13 +279,67 @@ public class Colorization {
 		//calculate total error
 		int error = 0;
 		for (int j=0; j<testStart; j++) {
-			error += calcWeightedColorDist(inColorMap.get(j), clusters[clusterClassification[j]]);
+			error += calcWeightedColorDist(inColorMap.get(j), inColorclusters[clusterClassification[j]]);
 		}
 		System.out.println("Error:" + error);
 		
 	}
 
-	public void createBWClusters() {
+	public static ArrayList<Integer> convertToBWCenter(ArrayList<Integer> input) {
+		
+		int dist = Integer.MAX_VALUE;
+		int pos = 0;
+		for(int i=0; i<inBwclusters.length ;i++) {
+			
+			if (inBwclusters[i][0] == 0 && inBwclusters[i][1] == 0 && inBwclusters[i][2] == 0 && inBwclusters[i][3] == 0 && inBwclusters[i][4] == 0) {
+				continue;
+			}
+			
+			int newDist = 0;
+			newDist += calcWeightedBWDist(input, inBwclusters[i]);
+		
+			if(newDist < dist) {
+				dist = newDist;
+				pos = i;
+			}
+		}
+		
+		ArrayList<Integer> output = new ArrayList<Integer>();
+		for(int i=0; i<inBwclusters[pos].length; i++) {
+			output.add(inBwclusters[pos][i]);
+		}
+		return output;
+	}
+	
+	public static ArrayList<Integer> convertToColorCenter(ArrayList<Integer> input) {
+		
+		int dist = Integer.MAX_VALUE;
+		int pos = 0;
+		for(int i=0; i<inColorclusters.length ;i++) {
+			
+			if (inColorclusters[i][0] == 0 && inColorclusters[i][1] == 0 && inColorclusters[i][2] == 0) {
+				continue;
+			}
+			
+			int newDist = 0;
+			for (int m=0; m<3; m++) {
+				newDist += Math.abs(input.get(m) - inColorclusters[i][m]);
+			}
+		
+			if(newDist < dist) {
+				dist = newDist;
+				pos = i;
+			}
+		}
+		
+		ArrayList<Integer> output = new ArrayList<Integer>();
+		for(int i=0; i<inColorclusters[pos].length; i++) {
+			output.add(inColorclusters[pos][i]);
+		}
+		return output;
+	}
+	
+	/*public void createBWClusters() {
 		
 		int[] bwClusters = new int[CLUSTERS];
 		int totalValues = 48894;
@@ -361,9 +415,9 @@ public class Colorization {
 			System.out.print(bwClusters[i]+" ");
 		}
 		System.out.println("\n");
-	}
+	}*/
 	
-public void createColorClusters() {
+	/*public void createColorClusters() {
 		
 		ArrayList<int[]> colorClusters = new ArrayList<int[]>();
 		int totalValues = 48894;
@@ -462,11 +516,10 @@ public void createColorClusters() {
 			System.out.print(colorClusters.get(i)[0]+" "+colorClusters.get(i)[1]+" "+colorClusters.get(i)[2]+", \t");
 		}
 		
-	}
+	}*/
 
-	public void extractData() {
+	public static void extractData() {
 		
-		LinkedHashMap<Integer, ArrayList<Integer>> outBwMap = new LinkedHashMap<Integer, ArrayList<Integer>>();
 		String bwCurrentLine = "";
 		FileReader freader = null; 
 		BufferedReader breader = null;
@@ -484,15 +537,16 @@ public void createColorClusters() {
 					bwValues.add(Integer.parseInt(bwVal[i].trim()));
 				}
 				
+				ArrayList<Integer> colorValues = conversionMapping.get(convertToBWCenter(bwValues));
 				
 				
 				StringBuffer sb = new StringBuffer();
-				/*for(int i = 0; i < colorValues.size(); i++) {
+				for(int i = 0; i < colorValues.size(); i++) {
 					if(i < colorValues.size()-1)
 						sb.append(colorValues.get(i)+",");
 					else
 						sb.append(colorValues.get(i));
-				}*/
+				}
 				    
 				 long fileLength = randomFile.length();
 				 randomFile.seek(fileLength);
@@ -519,6 +573,21 @@ public void createColorClusters() {
 		return dist.intValue();
 	}
 	
+	public static double calcWeightedBWDist(ArrayList<Integer> arr1, int[] arr2) {
+		double pixel1 = 0.025*Math.pow(arr1.get(0) - arr2[0], 2);
+		double pixel2 = 0.025*Math.pow(arr1.get(1) - arr2[1], 2);
+		double pixel3 = 0.025*Math.pow(arr1.get(2) - arr2[2], 2);
+		double pixel4 = 0.025*Math.pow(arr1.get(3) - arr2[3], 2);
+		double pixel5 = 0.8 * Math.pow(arr1.get(4) - arr2[4], 2);
+		double pixel6 = 0.025*Math.pow(arr1.get(5) - arr2[5], 2);
+		double pixel7 = 0.025*Math.pow(arr1.get(6) - arr2[6], 2);
+		double pixel8 = 0.025*Math.pow(arr1.get(7) - arr2[7], 2);
+		double pixel9 = 0.025*Math.pow(arr1.get(8) - arr2[8], 2);
+		
+		double distance = Math.pow(pixel1+pixel2+pixel3+pixel4+pixel5+pixel6+pixel7+pixel8+pixel9, 0.5);
+		return distance;
+	}
+	
 	public static double calcWeightedColorDist(ArrayList<Integer> arr1, int[] arr2) {
 		double red = 2*Math.pow(arr1.get(0) - arr2[0], 2);
 		double green = 4*Math.pow(arr1.get(1) - arr2[1], 2);
@@ -530,7 +599,7 @@ public void createColorClusters() {
 	
 	public static void print2dBWArray(int[][] array) {
 		for (int i=0; i<array.length; i++) {
-			System.out.println("Array: " + (i+1));
+			System.out.println("Cluster: " + (i+1));
 			System.out.println(array[i][0] + " " + array[i][1] + " " + array[i][2]);
 			System.out.println(array[i][3] + " " + array[i][4] + " " + array[i][5]);
 			System.out.println(array[i][6] + " " + array[i][7] + " " + array[i][8]);
@@ -540,7 +609,7 @@ public void createColorClusters() {
 	
 	public static void print2dColorArray(int[][] array) {
 		for (int i=0; i<array.length; i++) {
-			System.out.println("Array: " + (i+1));
+			System.out.println("Cluster: " + (i+1));
 			System.out.println(array[i][0] + " " + array[i][1] + " " + array[i][2]);
 			System.out.println();
 		}
