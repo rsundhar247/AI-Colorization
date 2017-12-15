@@ -13,11 +13,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 
 public class Colorization {
 	
@@ -29,7 +26,8 @@ public class Colorization {
 	static int testEnd = testStart + (int)(48894*0.15);
 	static int validationStart = testEnd + 1;
 	static int validationEnd = 48893;
-	
+	static int TOTAL_LINES = 48894;
+
 	static int numClusters = 40;
 	static int maxReclassification = 40;
 	static int[] bwCluster;
@@ -42,6 +40,7 @@ public class Colorization {
 	//static int CLUSTERS = 10;
 	static String IN_COLOR_PATH = "src//data//color.csv";
 	static String IN_BW_PATH = "src//data//input.csv";
+
 	static String OUT_BW_PATH = "src//data//input.csv";
 	static String OUT_COLOR_PATH = "src//data//output11.csv"; //output color csv
 	static HashMap<Integer, ArrayList<Integer>> inBwMap = new HashMap<Integer, ArrayList<Integer>>(); // Map for BlackWhite data - (Key,Value) as (i, Cell<0 to 8>)
@@ -62,7 +61,7 @@ public class Colorization {
 		colorization.readData();
 		
 		System.out.println(trainingStart + ", " + trainingEnd + ", " + testStart + ", " + testEnd + ", " + validationStart + ", " + validationEnd);
-		
+
 		clusterBW();
 		clusterColor();
 
@@ -75,17 +74,13 @@ public class Colorization {
 		
 		//extractColor();
 		
-		//neuralNetworkMap();
-		
-		
+		//neuralNetworkMap();		
 //		for (int i=0; i<weights.length; i++) {
 //			for (int j=0; j<weights[0].length; j++) {
 //				System.out.print(weights[i][j] + " ");
 //			}
 //			System.out.println();
 //		}
-		
-		
 		//applyNeuralNetwork();
 		
 		getMap();
@@ -158,11 +153,11 @@ public class Colorization {
 		//System.out.println("Initial Clusters:");
 		//print2dBWArray(inBwclusters);
 			
-		int[] clusterClassification = new int[testStart]; 
+		int[] clusterClassification = new int[TOTAL_LINES]; 
 			
 		for (int j=0; j<maxReclassification; j++) { //iterations of reclustering
 				
-			for (int k=0; k<testStart; k++) { //classify each datapoint
+			for (int k=0; k<TOTAL_LINES; k++) { //classify each datapoint
 					
 				double dist = 0;
 				
@@ -188,7 +183,7 @@ public class Colorization {
 			int[][] newClusters = new int[numClusters][9];
 			int[] totalDataPerCluster = new int[numClusters];
 				
-			for (int k=0; k<testStart; k++) {
+			for (int k=0; k<TOTAL_LINES; k++) {
 				totalDataPerCluster[clusterClassification[k]] += 1;
 					
 				for (int l=0; l<9; l++) { //clusters without observations are dropped
@@ -223,7 +218,7 @@ public class Colorization {
 		
 		//calculate total error
 		double error = 0;
-		for (int j=0; j<testStart; j++) {
+		for (int j=0; j<TOTAL_LINES; j++) {
 			error = calcWeightedBWDist(inBwMap.get(j), inBwclusters[clusterClassification[j]]);
 		}
 		System.out.println("Error:" + error);
@@ -243,11 +238,11 @@ public class Colorization {
 		//System.out.println("Initial Clusters:");
 		//print2dColorArray(inColorclusters);
 			
-		int[] clusterClassification = new int[testStart]; 
+		int[] clusterClassification = new int[TOTAL_LINES]; 
 			
 		for (int j=0; j<maxReclassification; j++) { //iterations of reclustering
 				
-			for (int k=0; k<testStart; k++) { //classify each datapoint
+			for (int k=0; k<TOTAL_LINES; k++) { //classify each datapoint
 					
 				double dist = 0;
 				
@@ -274,7 +269,7 @@ public class Colorization {
 			int[][] newClusters = new int[numClusters][3];
 			int[] totalDataPerCluster = new int[numClusters];
 				
-			for (int k=0; k<testStart; k++) {
+			for (int k=0; k<TOTAL_LINES; k++) {
 				totalDataPerCluster[clusterClassification[k]] += 1;
 					
 				for (int l=0; l<3; l++) { //clusters without observations are dropped
@@ -313,7 +308,7 @@ public class Colorization {
 		
 		//calculate total error
 		double error = 0;
-		for (int j=0; j<testStart; j++) {
+		for (int j=0; j<TOTAL_LINES; j++) {
 			error = calcWeightedColorDist(inColorMap.get(j), inColorclusters[clusterClassification[j]]);
 		}
 		System.out.println("Error:" + error);
